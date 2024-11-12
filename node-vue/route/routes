@@ -1,0 +1,24 @@
+var express = require('express');
+
+// var studentController =require ('../src/studentController');
+const { createstudentControllerFn, loginUserControllerFn, updateProfileControllerFn, upload, getProfileControllerFn ,getStudentByIdControllerFn} = require('../src/studentController');
+
+
+const authMiddleware = require('../src/authMiddleware');
+const router =express.Router();
+
+
+router.post('/student/login', loginUserControllerFn);
+router.post('/student/create', createstudentControllerFn);
+router.post('/student/profile', authMiddleware, upload.single('image'), updateProfileControllerFn);
+router.get('/student/profile', authMiddleware, getProfileControllerFn);
+router.get('/student/:id', getStudentByIdControllerFn);
+
+
+
+// router.route('/student/profile').post(authMiddleware, studentController.updateProfileControllerFn); 
+// router.route('/student/login').post(studentController.loginUserControllerFn);
+// router.route('/student/create').post(studentController.createstudentControllerFn);
+
+
+module.exports=router;

@@ -1,0 +1,194 @@
+var studentService =require('./studentService');
+const jwt = require('jsonwebtoken');
+const secretKey = '4b7x9h!xk^e@2Zr';
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
+
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadDir = path.join(__dirname, 'uploads');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({ storage: storage });
+
+const deleteOldProfileImage = (oldImageUrl) => {
+    if (oldImageUrl) {
+        // ดึงชื่อไฟล์จาก URL
+        const oldImageFilename = path.basename(oldImageUrl);
+        // สร้างพาธไฟล์ในโฟลเดอร์ uploads
+        const oldImagePath = path.join(__dirname, 'uploads', oldImageFilename);
+        // ลบไฟล์
+        fs.unlink(oldImagePath, (err) => {
+            if (err) {
+                console.error('Error deleting old profile image:', err);
+            } else {
+                console.log('Old profile image deleted successfully.');
+            }
+        });
+    }
+};
+
+
+
+var createstudentControllerFn =async(req,res)=>{
+    try{
+        console.log(req.body);
+        var status =await studentService.createStudentDBService(req.body);
+        console.log(status);
+
+        if(status){
+            res.send({"status":true, "message":"User created successfully"});
+
+
+        }else{
+            res.send({"status":false, "message":"Error created User"})
+        }
+    }
+    catch(err){
+        console.log(err);
+    }
+}
+var loginUserControllerFn =async(req,res)=>{
+    var result =null;
+    try{
+        
+        result =await studentService.loginUserDBService(req.body);
+        
+
+        if(result.status){
+            const token = jwt.sign(
+                { id: result.data._id, email: result.data.email }, // ข้อมูลที่ต้องการใส่ใน token
+                secretKey, // secret key 
+                { expiresIn: '1h' } // อายุ token
+            );
+
+
+
+
+            res.status(200).send({
+                status: true,
+                message: result.msg,
+                data: { 
+                    _id: result.data._id,
+                    firstname: result.data.firstname, 
+                    lastname: result.data.lastname, 
+                    email: result.data.email ,
+                    birthdate: result.data.birthdate,
+                    gender: result.data.gender,
+                    address:result.data.address,
+                    profileImage:result.data.profileImage,
+                    token
+                }
+            });
+
+        }else{
+            res.send({"status":false, "message":result.msg})
+        }
+    }
+    catch(error){
+        console.log(error);
+        res.send({"status":false, "message":error.message})
+    }
+}
+
+var updateProfileControllerFn = async (req, res) => {
+    try {
+        const studentId = req.user.id; 
+        const { firstname, lastname, address } = req.body;
+        // let profileDetails = { firstname, lastname, address };
+
+        const profileDetails = {
+            firstname,
+            lastname,
+            address,
+            
+        };
+        
+        const oldProfile = await studentService.getProfileDBService(studentId); 
+        if (oldProfile && oldProfile.profileImage) {
+            
+            deleteOldProfileImage(oldProfile.profileImage);
+        }
+
+        
+        if (req.file) {
+            const profileImageUrl = `http://localhost:3000/uploads/${path.basename(req.file.path)}`;
+            profileDetails.profileImage = profileImageUrl;
+        }
+        
+        const result = await studentService.updateProfileDBService(studentId, profileDetails);
+        console.log(result)
+        if (result.status) {
+            res.status(200).send({
+                status: true,
+                message: "Profile updated successfully",
+                data: result.data
+            });
+        } else {
+            res.status(400).send({ 
+                status: false, 
+                message: "Error updating profile" 
+            });
+        }
+    } catch (error) {
+        console.log(error);
+        res.status(500).send({ 
+            status: false, 
+            message: error.message 
+        });
+    }
+}
+
+
+var getProfileControllerFn = async (req, res) => {
+    try {
+        const studentId = req.user.id; // ใช้ข้อมูลจาก JWT
+        const result = await studentService.getProfileDBService(studentId); // ดึงข้อมูลจากฐานข้อมูล
+
+        if (result.status) {
+            res.status(200).send({
+                status: true,
+                message: "Profile fetched successfully",
+                data: result.data
+            });
+        } else {
+            res.status(404).send({ "status": false, "message": "Profile not found" });
+        }
+    } catch (error) {
+        console.log(error);
+        res.status(500).send({ "status": false, "message": error.message });
+    }
+};
+
+var getStudentByIdControllerFn = async (req, res) => {
+    try {
+        const studentId = req.params.id; // ดึง ID จาก URL parameter
+        const result = await studentService.getProfileDBService(studentId); // เรียกใช้งาน service เพื่อตรวจสอบข้อมูล
+        
+        if (result.status) {
+            res.status(200).send({
+                status: true,
+                message: "Student fetched successfully",
+                data: result.data
+            });
+        } else {
+            res.status(404).send({ status: false, message: "Student not found" });
+        }
+    } catch (error) {
+        console.log(error);
+        res.status(500).send({ status: false, message: error.message });
+    }
+};
+
+
+
+module.exports={createstudentControllerFn,loginUserControllerFn , updateProfileControllerFn , upload,getProfileControllerFn,getStudentByIdControllerFn};

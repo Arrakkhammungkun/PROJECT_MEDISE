@@ -1,0 +1,99 @@
+var studentModel =require('./studentModel');
+var key ='123456789trytrytry';
+var encryptor =require ('simple-encryptor')(key);
+
+
+
+
+
+
+
+
+module.exports.createStudentDBService = (studentDetails) => {
+    return new Promise(async function myFn(resolve, reject) {
+        try {
+            
+            var studentModelData = new studentModel();
+            studentModelData.firstname = studentDetails.firstname;
+            studentModelData.lastname = studentDetails.lastname;
+            studentModelData.email = studentDetails.email;    
+            studentModelData.password = studentDetails.password;
+            studentModelData.birthdate = studentDetails.birthdate; 
+            studentModelData.gender = studentDetails.gender;  
+
+            // เข้ารหัสรหัสผ่าน
+            var encrypted = encryptor.encrypt(studentDetails.password);
+            studentModelData.password = encrypted;
+
+            var result = await studentModelData.save();
+            resolve(true);
+        } catch (error) {
+            console.error(error);
+            reject(false);
+        }
+    });
+};
+
+module.exports.loginUserDBService = (studentDetails) => {
+    return new Promise(async function myFn(resolve, reject) {
+        try {
+            const result = await studentModel.findOne({ email: studentDetails.email }).exec();
+
+            if (result != undefined && result != null) {
+                var decrypted = encryptor.decrypt(result.password);
+
+                if (decrypted == studentDetails.password) {
+                    resolve({ status: true, msg: "Student Validated Successfully" ,data: result});
+                } else {
+                    reject({ status: false, msg: "Student Validation failed" });
+                }
+            } else {
+                reject({ status: false, msg: "Invalid Data" });
+            }
+        } catch (error) {
+            reject({ status: false, msg: error.message });
+        }
+    });
+};
+
+
+module.exports.updateProfileDBService = (studentId, profileDetails) => {
+    return new Promise(async function myFn(resolve, reject) {
+        try {
+                
+
+                const updatedStudent = await studentModel.findByIdAndUpdate(
+                studentId, 
+                { $set: profileDetails }, 
+                { new: true, runValidators: true }
+            ).exec();
+
+
+            if (updatedStudent) {
+                resolve({ status: true, data: updatedStudent });
+            } else {
+                reject({ status: false, msg: 'Student not found' });
+            }
+        } catch (error) {
+            reject({ status: false, msg: error.message });
+        }
+    });
+};
+
+module.exports.getProfileDBService = (studentId) => {
+    return new Promise(async function myFn(resolve, reject) {
+        try {
+            // ดึงข้อมูลของผู้ใช้รวมถึง profileImage
+            const student = await studentModel.findById(studentId).exec();
+            if (student) {
+                resolve({ status: true, data: student });
+            } else {
+                resolve({ status: false, message: 'Student not found' });
+            }
+        } catch (error) {
+            reject({ status: false, msg: error.message });
+        }
+    });
+};
+
+

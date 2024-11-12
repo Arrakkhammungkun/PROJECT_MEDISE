@@ -1,0 +1,45 @@
+const express = require('express');
+const router = express.Router();
+const mongoose = require('mongoose');
+
+// Define Category schema and model
+const categorySchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true
+  }
+});
+const Category = mongoose.model('Category', categorySchema);
+
+// GET /api/categories/add
+router.get('/add', async (req, res) => {
+  try {
+    const categories = await Category.find({});
+    res.json(categories);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// POST /api/categories/add
+router.post('/add', async (req, res) => {
+  console.log(req.body); 
+
+  const { name } = req.body || {}; 
+
+  if (!name) {
+    return res.status(400).json({ error: 'กรุณาป้อนชื่อหมวดหมู่สินค้า' });
+  }
+
+  try {
+    const category = new Category({ name });
+    await category.save();
+    res.status(201).json(category);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+module.exports = {router,Category}
+
+  
